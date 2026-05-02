@@ -11,7 +11,6 @@ st.title("📈 上包絡偵測與衰減分析程式")
 
 # --- 1. 準備範例數據 (就是你提供的那份數據) ---
 sample_data = """time,displacement
-time,displacement
 0.0,0.0147
 0.0333,0.00804
 0.0667,0.000546
