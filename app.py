@@ -6,11 +6,15 @@ from scipy.signal import find_peaks
 from sklearn.linear_model import LinearRegression
 import io
 
-st.set_page_config(page_title="物理實驗分析工具", layout="wide")
-st.title("📈 上包絡偵測與衰減分析程式")
+# 設定網頁標題與寬度佈局
+st.set_page_config(page_title="上包絡偵測程式", layout="centered")
 
-# --- 1. 準備範例數據 (就是你提供的那份數據) ---
-sample_data = """time,displacement
+st.title("上包絡偵測程式")
+
+# --- 1. 準備範例數據 (讓下載功能更穩定) ---
+def get_sample_csv():
+    # 這裡放入你提供的那份數據內容
+    csv_text = """time,displacement
 0.0,0.0147
 0.0333,0.00804
 0.0667,0.000546
@@ -606,67 +610,82 @@ sample_data = """time,displacement
 19.8,0.00448
 19.8,0.0046
 """
+    return csv_text
 
-# --- 2. 顯示下載按鈕 ---
+# --- 2. 下載區塊 ---
 st.subheader("下載範例數據")
 st.download_button(
-    label="📥 下載範例 CSV 數據",
-    data=sample_data,
-    file_name="damping_sample.csv",
-    mime="text/csv",
+    label="📥 下載範例數據",
+    data=get_sample_csv(),
+    file_name="sample_data.csv",
+    mime="text/csv"
 )
 
-st.write("---") # 分隔線
-
-# --- 3. 檔案上傳區塊 ---
+# --- 3. 上傳區塊 ---
 st.subheader("上傳您的 CSV 檔案")
-uploaded_file = st.file_uploader("選擇檔案", type="csv")
+uploaded_file = st.file_uploader("Upload", type="csv")
 
 if uploaded_file is not None:
+    # 讀取資料
     df = pd.read_csv(uploaded_file)
-    
-    # 清洗欄位名稱 (防呆)
+    st.write("### 上傳的資料")
+    st.dataframe(df.head(10))
+
+    # 確保欄位名稱正確
     df.columns = [c.strip().lower() for c in df.columns]
     
     if 'time' in df.columns and 'displacement' in df.columns:
         t = df['time'].values
         y = df['displacement'].values
 
-        # 峰值偵測
+        # 4. 偵測上包絡 (峰值偵測)
         peaks, _ = find_peaks(y, distance=5, prominence=0.001)
-        
-               # --- 繪製第一張圖：位移 vs 時間 ---
+
+        # 5. 繪製 位移 vs 時間
         st.write("### 位移 vs 時間")
-        st.pyplot(fig1, use_container_width=True)
-        ax1.plot(t, y, alpha=0.6, label='震盪數據')
-        ax1.scatter(t[peaks], y[peaks], color='red', s=20, label='偵測峰值')
+        fig_disp, ax1 = plt.subplots(figsize=(10, 4))
+        ax1.plot(t, y, alpha=0.6, label='Damped Oscillation')
+        ax1.scatter(t[peaks], y[peaks], color='red', s=20, label='Detected Peaks')
         ax1.set_xlabel("Time (s)")
-        ax1.set_ylabel("Displacement")
+        ax1.set_ylabel("Displacement (m)")
+        ax1.set_title("Displacement vs Time")
         ax1.legend()
-        st.pyplot(fig1)
+        st.pyplot(fig_disp, use_container_width=True)
 
-        # --- 繪製第二張圖：對數回歸分析 ---
+        # 6. 對數回歸分析
         st.write("### ln(上包絡位移) vs 時間")
-        sst.pyplot(fig2, use_container_width=True)
+        
+        # 只取正值的波峰
         mask = y[peaks] > 0
-        t_fit = t[peaks][mask]
-        ln_y = np.log(y[peaks][mask])
+        t_peaks = t[peaks][mask]
+        y_peaks = y[peaks][mask]
 
-        if len(t_fit) > 1:
-            X = t_fit.reshape(-1, 1)
+        if len(t_peaks) > 1:
+            ln_y = np.log(y_peaks)
+            X = t_peaks.reshape(-1, 1)
+            
+            # 線性回歸
             model = LinearRegression().fit(X, ln_y)
             ln_y_pred = model.predict(X)
-            
-            fig2, ax2 = plt.subplots(figsize=(10, 4))
-            ax2.scatter(t_fit, ln_y, color='red', label='ln(峰值)')
-            ax2.plot(t_fit, ln_y_pred, color='blue', label='回歸線')
-            ax2.set_xlabel("Time (s)")
-            ax2.set_ylabel("ln(Displacement)")
-            ax2.legend()
-            st.pyplot(fig2) # <--- 確保這行有在裡面！
+            r2 = model.score(X, ln_y)
 
-            # 顯示結果數值
+            fig_ln, ax2 = plt.subplots(figsize=(10, 4))
+            ax2.scatter(t_peaks, ln_y, color='red', label='Data (ln-transformed)')
+            ax2.plot(t_peaks, ln_y_pred, color='blue', label=f'Fit: ln(A) = {model.coef_[0]:.4f}t + {model.intercept_:.4f}')
+            ax2.set_xlabel("Time (s)")
+            ax2.set_ylabel("ln(Peak Amplitude)")
+            ax2.set_title("Ln of Peak Amplitudes vs Time")
+            ax2.legend()
+            st.pyplot(fig_ln, use_container_width=True)
+
+            # 7. 顯示回歸結果
+            st.write("### 回歸結果")
             st.write(f"**斜率 (衰減率):** {model.coef_[0]:.6f}")
-            st.write(f"**R-squared:** {model.score(X, ln_y):.6f}")
+            st.write(f"**截距:** {model.intercept_:.6f}")
+            st.write(f"**R-squared:** {r2:.6f}")
+        else:
+            st.warning("偵測到的波峰數量不足，無法進行回歸分析。")
     else:
-        st.error("CSV 格式錯誤，請確認欄位名為 time 與 displacement")
+        st.error("CSV 格式錯誤！請確保欄位名稱包含 'time' 與 'displacement'。")
+else:
+    st.info("請上傳 CSV 檔案以開始分析。")
