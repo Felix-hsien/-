@@ -635,23 +635,37 @@ if uploaded_file is not None:
         # 峰值偵測
         peaks, _ = find_peaks(y, distance=5, prominence=0.001)
         
-        # 繪圖與回歸 (同前一段程式碼)
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("### 位移 vs 時間")
-            fig1, ax1 = plt.subplots()
-            ax1.plot(t, y, alpha=0.6)
-            ax1.scatter(t[peaks], y[peaks], color='red')
-            st.pyplot(fig1)
+               # --- 繪製第一張圖：位移 vs 時間 ---
+        st.write("### 一、位移 vs 時間")
+        fig1, ax1 = plt.subplots(figsize=(10, 4))
+        ax1.plot(t, y, alpha=0.6, label='震盪數據')
+        ax1.scatter(t[peaks], y[peaks], color='red', s=20, label='偵測峰值')
+        ax1.set_xlabel("Time (s)")
+        ax1.set_ylabel("Displacement")
+        ax1.legend()
+        st.pyplot(fig1)
+
+        # --- 繪製第二張圖：對數回歸分析 ---
+        st.write("### 二、對數回歸分析")
+        mask = y[peaks] > 0
+        t_fit = t[peaks][mask]
+        ln_y = np.log(y[peaks][mask])
+
+        if len(t_fit) > 1:
+            X = t_fit.reshape(-1, 1)
+            model = LinearRegression().fit(X, ln_y)
+            ln_y_pred = model.predict(X)
             
-        with col2:
-            st.write("### 對數回歸分析")
-            mask = y[peaks] > 0
-            if len(t[peaks][mask]) > 1:
-                X = t[peaks][mask].reshape(-1, 1)
-                ln_y = np.log(y[peaks][mask])
-                model = LinearRegression().fit(X, ln_y)
-                st.write(f"斜率 (衰減率): {model.coef_[0]:.4f}")
-                st.write(f"R-squared: {model.score(X, ln_y):.4f}")
+            fig2, ax2 = plt.subplots(figsize=(10, 4))
+            ax2.scatter(t_fit, ln_y, color='red', label='ln(峰值)')
+            ax2.plot(t_fit, ln_y_pred, color='blue', label='回歸線')
+            ax2.set_xlabel("Time (s)")
+            ax2.set_ylabel("ln(Displacement)")
+            ax2.legend()
+            st.pyplot(fig2) # <--- 確保這行有在裡面！
+
+            # 顯示結果數值
+            st.write(f"**斜率 (衰減率):** {model.coef_[0]:.6f}")
+            st.write(f"**R-squared:** {model.score(X, ln_y):.6f}")
     else:
         st.error("CSV 格式錯誤，請確認欄位名為 time 與 displacement")
