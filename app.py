@@ -643,7 +643,7 @@ if uploaded_file is not None:
 
         # 5. 繪製 位移 vs 時間
         st.write("### 位移 vs 時間")
-        fig_disp, ax1 = plt.subplots(figsize=(10, 4))
+        fig_disp, ax1 = plt.subplots(figsize=(5, 3))
         ax1.plot(t, y, alpha=0.6, label='Damped Oscillation')
         ax1.scatter(t[peaks], y[peaks], color='red', s=20, label='Detected Peaks')
         ax1.set_xlabel("Time (s)")
@@ -669,7 +669,7 @@ if uploaded_file is not None:
             ln_y_pred = model.predict(X)
             r2 = model.score(X, ln_y)
 
-            fig_ln, ax2 = plt.subplots(figsize=(10, 4))
+            fig_ln, ax2 = plt.subplots(figsize=(5, 3))
             ax2.scatter(t_peaks, ln_y, color='red', label='Data (ln-transformed)')
             ax2.plot(t_peaks, ln_y_pred, color='blue', label=f'Fit: ln(A) = {model.coef_[0]:.4f}t + {model.intercept_:.4f}')
             ax2.set_xlabel("Time (s)")
