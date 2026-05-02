@@ -5,67 +5,81 @@ import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 from sklearn.linear_model import LinearRegression
 
-st.title("上包絡偵測與回歸分析程式")
+st.set_page_config(page_title="物理實驗數據分析工具", layout="wide")
+st.title("📊 阻尼振盪：上包絡偵測與衰減分析")
 
-# 1. 檔案上傳
-uploaded_file = st.file_uploader("請上傳 CSV 數據檔案", type="csv")
+# 檔案上傳
+uploaded_file = st.file_uploader("請上傳 CSV 檔案 (格式：time, displacement)", type="csv")
 
 if uploaded_file is not None:
+    # 讀取數據，支援你提供的 time, displacement 格式
     df = pd.read_csv(uploaded_file)
-    st.write("### 上傳的資料預覽", df.head())
     
-    # 讓使用者選擇欄位
-    columns = df.columns.tolist()
-    time_col = st.selectbox("請選擇『時間』欄位", columns)
-    val_col = st.selectbox("請選擇『位移/振幅』欄位", columns)
+    # 清洗數據：確保欄位名稱正確（移除多餘空格）
+    df.columns = [c.strip().lower() for c in df.columns]
     
-    t = df[time_col].values
-    y = df[val_col].values
+    if 'time' in df.columns and 'displacement' in df.columns:
+        t = df['time'].values
+        y = df['displacement'].values
 
-    # 2. 尋找波峰 (上包絡)
-    # distance 可以根據數據密度調整，這裡預設 10
-    peaks, _ = find_peaks(y, distance=10)
-    t_peaks = t[peaks]
-    y_peaks = y[peaks]
+        # 1. 偵測上包絡峰值
+        # 你的數據約每 0.33 秒一個波峰，採樣間隔約 0.033，故 distance 設為 5~10 較合適
+        peaks, _ = find_peaks(y, distance=8, prominence=0.001)
+        t_peaks = t[peaks]
+        y_peaks = y[peaks]
 
-    # 3. 繪製位移 vs 時間
-    st.write("### 位移 vs 時間")
-    fig1, ax1 = plt.subplots()
-    ax1.plot(t, y, label='原始信號', alpha=0.6)
-    ax1.scatter(t_peaks, y_peaks, color='red', s=10, label='偵測到的峰值')
-    ax1.set_xlabel("Time (s)")
-    ax1.set_ylabel("Displacement")
-    ax1.legend()
-    st.pyplot(fig1)
+        # 介面佈局
+        col1, col2 = st.columns(2)
 
-    # 4. 對數回歸分析 (取 ln)
-    # 注意：y 必須為正值才能取 ln
-    st.write("### ln(上包絡位移) vs 時間")
-    ln_y_peaks = np.log(y_peaks[y_peaks > 0]) # 確保只取正值
-    t_peaks_filtered = t_peaks[y_peaks > 0]
+        with col1:
+            st.subheader("位移 vs 時間 (原始數據與峰值)")
+            fig1, ax1 = plt.subplots()
+            ax1.plot(t, y, label='震盪數據', alpha=0.6, color='steelblue')
+            ax1.scatter(t_peaks, y_peaks, color='red', s=25, label='偵測到的峰值')
+            ax1.set_xlabel("Time (s)")
+            ax1.set_ylabel("Displacement (m)")
+            ax1.legend()
+            ax1.grid(True, linestyle='--', alpha=0.7)
+            st.pyplot(fig1)
 
-    if len(t_peaks_filtered) > 1:
-        # 執行線性回歸
-        X = t_peaks_filtered.reshape(-1, 1)
-        model = LinearRegression().fit(X, ln_y_peaks)
-        y_pred = model.predict(X)
-        r_squared = model.score(X, ln_y_peaks)
+        with col2:
+            st.subheader("ln(位移) vs 時間 (線性回歸)")
+            
+            # 過濾正值峰值以計算 ln
+            mask = y_peaks > 0
+            t_fit = t_peaks[mask]
+            ln_y_fit = np.log(y_peaks[mask])
 
-        fig2, ax2 = plt.subplots()
-        ax2.scatter(t_peaks_filtered, ln_y_peaks, color='red', label='ln(Peak)')
-        ax2.plot(t_peaks_filtered, y_pred, color='blue', label=f'Fit: ln(A) = {model.coef_[0]:.4f}t + {model.intercept_:.4f}')
-        ax2.set_xlabel("Time (s)")
-        ax2.set_ylabel("ln(Peak Amplitude)")
-        ax2.legend()
-        st.pyplot(fig2)
+            if len(t_fit) > 1:
+                # 線性回歸
+                X = t_fit.reshape(-1, 1)
+                model = LinearRegression().fit(X, ln_y_fit)
+                ln_y_pred = model.predict(X)
+                r2 = model.score(X, ln_y_fit)
 
-        # 顯示回歸結果
-        st.write("### 回歸結果")
-        st.write(f"**斜率 (衰減係數):** {model.coef_[0]:.6f}")
-        st.write(f"**截距:** {model.intercept_:.6f}")
-        st.write(f"**R-squared (相關係數):** {r_squared:.6f}")
+                fig2, ax2 = plt.subplots()
+                ax2.scatter(t_fit, ln_y_fit, color='red', label='ln(峰值數據)')
+                ax2.plot(t_fit, ln_y_pred, color='navy', linestyle='-', label='回歸預測線')
+                ax2.set_xlabel("Time (s)")
+                ax2.set_ylabel("ln(Displacement)")
+                ax2.legend()
+                ax2.grid(True, linestyle='--', alpha=0.7)
+                st.pyplot(fig2)
+
+                # 顯示物理參數
+                st.info(f"### 物理分析結果")
+                st.latex(rf"\ln(A) = {model.coef_[0]:.4f} \cdot t + {model.intercept_:.4f}")
+                st.write(f"**衰減係數 ($\gamma$):** {-model.coef_[0]:.6f}")
+                st.write(f"**判定係數 ($R^2$):** {r2:.6f}")
+            else:
+                st.error("有效峰值不足，請調整偵測參數。")
+
+        # 顯示數據表
+        with st.expander("查看偵測到的峰值數據表"):
+            peak_df = pd.DataFrame({'Time': t_fit, 'Displacement': y_peaks[mask], 'ln(Disp)': ln_y_fit})
+            st.write(peak_df)
+
     else:
-        st.warning("偵測到的峰值不足，無法執行回歸分析。")
-
+        st.error("CSV 格式不符！請確保標題包含 'time' 與 'displacement'。")
 else:
-    st.info("請上傳一個 CSV 檔案來開始分析（需包含時間與位移兩欄）。")
+    st.write("請從上方上傳你剛才提供的 CSV 數據。")
