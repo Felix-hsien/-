@@ -636,8 +636,8 @@ if uploaded_file is not None:
         peaks, _ = find_peaks(y, distance=5, prominence=0.001)
         
                # --- 繪製第一張圖：位移 vs 時間 ---
-        st.write("### 一、位移 vs 時間")
-        fig1, ax1 = plt.subplots(figsize=(10, 4))
+        st.write("### 位移 vs 時間")
+        st.pyplot(fig1, use_container_width=True) # 加上這個參數
         ax1.plot(t, y, alpha=0.6, label='震盪數據')
         ax1.scatter(t[peaks], y[peaks], color='red', s=20, label='偵測峰值')
         ax1.set_xlabel("Time (s)")
@@ -646,7 +646,8 @@ if uploaded_file is not None:
         st.pyplot(fig1)
 
         # --- 繪製第二張圖：對數回歸分析 ---
-        st.write("### 二、對數回歸分析")
+        st.write("### ln(上包絡位移) vs 時間")
+        st.pyplot(fig2, use_container_width=True) # 加上這個參數
         mask = y[peaks] > 0
         t_fit = t[peaks][mask]
         ln_y = np.log(y[peaks][mask])
