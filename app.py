@@ -630,8 +630,7 @@ if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
     st.markdown("### 上傳的資料")
     st.dataframe(df, use_container_width=True, height=400)
-    st.table(df)
-
+    
     # 確保欄位名稱正確
     df.columns = [c.strip().lower() for c in df.columns]
     
