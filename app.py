@@ -628,8 +628,8 @@ uploaded_file = st.file_uploader("Upload", type="csv")
 if uploaded_file is not None:
     # 讀取資料
     df = pd.read_csv(uploaded_file)
-    st.write("### 上傳的資料")
-    st.dataframe(df.head(10))
+    st.table("### 上傳的資料")
+    st.table(df)
 
     # 確保欄位名稱正確
     df.columns = [c.strip().lower() for c in df.columns]
